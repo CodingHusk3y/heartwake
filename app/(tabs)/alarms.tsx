@@ -18,13 +18,13 @@ export default function AlarmsScreen() {
   useFocusEffect(React.useCallback(() => { cleanupExpiredOneTime().then(load); }, [load]));
   useEffect(() => { ensureNotificationPermission().then(() => {}); }, []);
   useEffect(() => {
-    const sub1 = Notifications.addNotificationReceivedListener(n => {
+    const sub1 = Notifications.addNotificationReceivedListener(async n => {
       const type = (n.request.content.data as any)?.type;
-      if (type === 'deadline') load();
+      if (type === 'deadline') { await cleanupExpiredOneTime(); load(); }
     });
-    const sub2 = Notifications.addNotificationResponseReceivedListener(r => {
+    const sub2 = Notifications.addNotificationResponseReceivedListener(async r => {
       const type = (r.notification.request.content.data as any)?.type;
-      if (type === 'deadline') load();
+      if (type === 'deadline') { await cleanupExpiredOneTime(); load(); }
     });
     return () => { sub1.remove(); sub2.remove(); };
   }, [load]);

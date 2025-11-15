@@ -2,9 +2,10 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Button, Switch, Text, View } from 'react-native';
 import LiveHrChart from '../../components/LiveHrChart';
+import NumberWheel from '../../components/NumberWheel';
 import { useSession } from '../../context/SessionContext';
 import { startWakeMonitoring, stopWakeMonitoring, updateStageForAlarm } from '../../services/alarm';
-import { startClapHr, stopClapHr, subscribeClapHr } from '../../services/clapHr';
+import { getClapSensitivity, setClapSensitivity, startClapHr, stopClapHr, subscribeClapHr } from '../../services/clapHr';
 import { startHeartRateMock, stopHeartRateMock, subscribeHeartRate } from '../../services/heartRateMock';
 import { startMotion, stopMotion, subscribeMotion } from '../../services/sensors';
 import { inferStage } from '../../services/staging';
@@ -19,6 +20,7 @@ export default function LiveSession() {
   const hrRef = useRef<number | undefined>(undefined);
   const motionRef = useRef<number | undefined>(undefined);
   const [useClap, setUseClap] = useState<boolean>(true);
+  const [sensitivity, setSensitivity] = useState<number>(getClapSensitivity?.() ?? 3);
 
   useEffect(() => {
     if (!config) return;
@@ -89,6 +91,19 @@ export default function LiveSession() {
         <Text style={{ color: '#9aa0c0' }}>Clap mode</Text>
         <Switch value={useClap} onValueChange={setUseClap} />
       </View>
+      {useClap && (
+        <View style={{ marginTop: 4 }}>
+          <Text style={{ color: '#9aa0c0', marginBottom: 6 }}>Sensitivity (x{sensitivity})</Text>
+          <NumberWheel
+            value={sensitivity}
+            onChange={(v) => { setSensitivity(v); setClapSensitivity(v); }}
+            min={2}
+            max={6}
+            step={1}
+            labelSuffix="x"
+          />
+        </View>
+      )}
       <LiveHrChart data={hrSeries} />
       <Text style={{ color: '#ffffff' }}>Motion Magnitude: {motionMag ? motionMag.toFixed(2) : '—'}</Text>
       <Text style={{ color: '#ffffff' }}>Stage: {stage}</Text>
