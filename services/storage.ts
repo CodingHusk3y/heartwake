@@ -10,6 +10,7 @@ export type StoredSession = {
   early: boolean; // true if early wake inside window
   windowMinutes: number;
   rating?: number; // user wake quality 1-5
+  minutesEarly?: number; // minutes between early wake and target
 };
 
 async function read(): Promise<StoredSession[]> {
@@ -20,9 +21,9 @@ async function read(): Promise<StoredSession[]> {
 
 async function write(sessions: StoredSession[]) { await AsyncStorage.setItem(KEY, JSON.stringify(sessions)); }
 
-export async function saveSession(cfg: SleepSessionConfig, wakeTime: string | undefined, early: boolean) {
+export async function saveSession(cfg: SleepSessionConfig, wakeTime: string | undefined, early: boolean, minutesEarly?: number) {
   const sessions = await read();
-  sessions.unshift({ id: String(Date.now()), targetTime: cfg.targetTime, wakeTime, early, windowMinutes: cfg.windowMinutes });
+  sessions.unshift({ id: String(Date.now()), targetTime: cfg.targetTime, wakeTime, early, windowMinutes: cfg.windowMinutes, minutesEarly });
   await write(sessions.slice(0, 100));
 }
 

@@ -26,8 +26,8 @@ export default function LiveSession() {
       setMotionMag(mag);
       updateStage(hr, mag);
     });
-    startWakeMonitoring(config, (s, early, sessionId) => {
-      updateState({ earlyWakeTriggered: early, wakeTime: sessionId, stage: s });
+    startWakeMonitoring(config, (info) => {
+      updateState({ earlyWakeTriggered: info.early, wakeTime: info.wakeTime, stage: info.stage });
       // navigate to rating screen automatically
       router.push('/sleep/rate');
     });

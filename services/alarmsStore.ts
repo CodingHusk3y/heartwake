@@ -9,6 +9,8 @@ export type Alarm = {
   sound?: string; // identifier
   enabled: boolean;
   notifIds?: string[]; // scheduled notification IDs for cancelation
+  smartWake?: boolean; // use smart wake window and staging
+  windowMinutes?: number; // minutes before latest time
 };
 
 const KEY = 'heartwake_alarms_v1';

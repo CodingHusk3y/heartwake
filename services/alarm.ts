@@ -16,7 +16,7 @@ async function fireEarlyWake(stage: string) {
   });
 }
 
-export function startWakeMonitoring(cfg: SleepSessionConfig, onWake: (stage: string, early: boolean, sessionId: string) => void) {
+export function startWakeMonitoring(cfg: SleepSessionConfig, onWake: (info: { stage: string; early: boolean; wakeTime: string; minutesEarly: number }) => void) {
   stopWakeMonitoring();
   const target = new Date(cfg.targetTime).getTime();
   const windowStart = target - cfg.windowMinutes * 60000;
@@ -28,8 +28,9 @@ export function startWakeMonitoring(cfg: SleepSessionConfig, onWake: (stage: str
         monitorTimer = undefined;
         await fireEarlyWake(currentStage);
         const wakeTime = new Date().toISOString();
-        await saveSession(cfg, wakeTime, true);
-        onWake(currentStage, true, wakeTime);
+        const minutesEarly = Math.max(0, Math.ceil((target - now) / 60000));
+        await saveSession(cfg, wakeTime, true, minutesEarly);
+        onWake({ stage: currentStage, early: true, wakeTime, minutesEarly });
       }
     } else if (now > target) {
       clearInterval(monitorTimer);
@@ -39,8 +40,8 @@ export function startWakeMonitoring(cfg: SleepSessionConfig, onWake: (stage: str
         trigger: null
       });
       const wakeTime = new Date().toISOString();
-      await saveSession(cfg, wakeTime, false);
-      onWake(currentStage, false, wakeTime);
+      await saveSession(cfg, wakeTime, false, 0);
+      onWake({ stage: currentStage, early: false, wakeTime, minutesEarly: 0 });
     }
   }, 15000);
 }

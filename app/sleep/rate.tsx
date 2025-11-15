@@ -28,7 +28,7 @@ export default function RateWake() {
       {session ? (
         <>
           <Text>Wake Time: {session.wakeTime ? new Date(session.wakeTime).toLocaleTimeString() : '—'}</Text>
-          <Text>Early Wake: {session.early ? 'Yes' : 'No'}</Text>
+          <Text>Early Wake: {session.early ? `Yes${typeof session.minutesEarly === 'number' ? ` · ${session.minutesEarly} min early` : ''}` : 'No'}</Text>
           <Text>Select Rating (1=poor,5=great):</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {[1,2,3,4,5].map(v => (

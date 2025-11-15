@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -13,13 +13,14 @@ export default function AlarmsScreen() {
 
   const load = useCallback(() => { listAlarms().then(setAlarms); }, []);
   useEffect(() => { load(); }, [load]);
+  useFocusEffect(React.useCallback(() => { load(); }, [load]));
   useEffect(() => { ensureNotificationPermission().then(() => {}); }, []);
 
   useEffect(() => {
     nav.setOptions({
       headerRight: () => (
         <Pressable onPress={() => router.push('/alarm/edit')} style={{ paddingHorizontal: 12 }}>
-          <Ionicons name="add" size={24} />
+          <Ionicons name="add" size={26} color="#ffffff" />
         </Pressable>
       ),
       headerTitle: 'Alarms',
@@ -29,13 +30,14 @@ export default function AlarmsScreen() {
   const renderItem = ({ item }: { item: Alarm }) => <AlarmRow alarm={item} onChanged={load} onPress={() => router.push({ pathname: '/alarm/edit', params: { id: item.id } })} />;
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <FlatList
+        style={{ backgroundColor: 'transparent' }}
         contentContainerStyle={{ paddingVertical: 8 }}
         data={alarms}
         keyExtractor={(a) => a.id}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32 }}>No alarms. Tap + to add.</Text>}
+        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 32, color: '#9aa0c0' }}>No alarms. Tap + to add.</Text>}
         onRefresh={load}
         refreshing={false}
       />
@@ -56,7 +58,9 @@ function AlarmRow({ alarm, onChanged, onPress }: { alarm: Alarm; onChanged: () =
       <Pressable onPress={onPress} style={styles.row}>
         <View style={{ flex: 1 }}>
           <Text style={styles.time}>{alarm.timeHHMM}</Text>
-          <Text style={styles.meta}>{alarm.label || 'Alarm'} · {summarizeRepeat(alarm.repeat)}</Text>
+          <Text style={styles.meta}>
+            {(alarm.label || 'Alarm')} · {summarizeRepeat(alarm.repeat)}{alarm.smartWake ? ` · Smart wake ${alarm.windowMinutes ?? 30}m` : ''}
+          </Text>
         </View>
         <Switch value={alarm.enabled} onValueChange={async (v) => { await toggleAlarm(alarm.id, v); await rescheduleAlarm(alarm.id); onChanged(); }} />
       </Pressable>
@@ -65,8 +69,8 @@ function AlarmRow({ alarm, onChanged, onPress }: { alarm: Alarm; onChanged: () =
 }
 
 const styles = StyleSheet.create({
-  row: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#eee' },
-  time: { fontSize: 28, fontWeight: '600' },
-  meta: { color: '#666', marginTop: 2 },
+  row: { paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#1a1f3a' },
+  time: { fontSize: 28, fontWeight: '600', color: '#ffffff' },
+  meta: { color: '#9aa0c0', marginTop: 2 },
   delete: { backgroundColor: '#e24a4a', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, flexDirection: 'row' },
 });

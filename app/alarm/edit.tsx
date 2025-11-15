@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Button, Pressable, Text, TextInput, View } from 'react-native';
+import { Button, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import TimeWheel from '../../components/TimeWheel';
 import { rescheduleAlarm } from '../../services/alarmScheduler';
 import { Alarm, RepeatDay, listAlarms, upsertAlarm } from '../../services/alarmsStore';
 
@@ -15,6 +16,8 @@ export default function EditAlarm() {
   const [label, setLabel] = useState('Alarm');
   const [repeat, setRepeat] = useState<RepeatDay[]>([]);
   const [sound, setSound] = useState('default');
+  const [smartWake, setSmartWake] = useState<boolean>(true);
+  const [windowMinutes, setWindowMinutes] = useState<string>('30');
 
   useEffect(() => {
     if (id) {
@@ -22,6 +25,8 @@ export default function EditAlarm() {
         const a = list.find(x => x.id === id);
         if (a) {
           setTime(a.timeHHMM); setLabel(a.label || 'Alarm'); setRepeat(a.repeat || []); setSound(a.sound || 'default');
+          setSmartWake(a.smartWake ?? true);
+          setWindowMinutes(String(a.windowMinutes ?? 30));
         }
       });
     }
@@ -36,22 +41,36 @@ export default function EditAlarm() {
   };
 
   const save = async () => {
-    const alarm: Alarm = { id: id || newId(), timeHHMM: time, label, repeat, sound, enabled: true };
+    const wm = Math.max(0, parseInt(windowMinutes || '0', 10) || 0);
+    const alarm: Alarm = { id: id || newId(), timeHHMM: time, label, repeat, sound, enabled: true, smartWake, windowMinutes: wm };
     await upsertAlarm(alarm);
     await rescheduleAlarm(alarm.id);
     router.back();
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 16 }}>
-      <Text style={{ fontSize: 16 }}>Time (HH:MM 24h)</Text>
-      <TextInput value={time} onChangeText={setTime} style={{ borderWidth: 1, padding: 10, borderRadius: 8 }} placeholder="07:00" />
-      <Text>Label</Text>
-      <TextInput value={label} onChangeText={setLabel} style={{ borderWidth: 1, padding: 10, borderRadius: 8 }} />
-      <Text>Repeat</Text>
+    <View style={{ flex: 1, padding: 16, gap: 16, backgroundColor: 'transparent' }}>
+      <Text style={{ fontSize: 16, color: '#ffffff' }}>Time</Text>
+      <TimeWheel value={time} onChange={setTime} />
+      <Text style={{ color: '#ffffff' }}>Label</Text>
+      <TextInput value={label} onChangeText={setLabel} style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderColor: '#1a1f3a', color: '#ffffff' }} />
+      <Text style={{ color: '#ffffff' }}>Repeat</Text>
       <WeekdayPicker value={repeat} onChange={setRepeat} />
-      <Text>Sound</Text>
-      <TextInput value={sound} onChangeText={setSound} style={{ borderWidth: 1, padding: 10, borderRadius: 8 }} placeholder="default" />
+      <Text style={{ color: '#ffffff' }}>Sound</Text>
+      <TextInput value={sound} onChangeText={setSound} style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderColor: '#1a1f3a', color: '#ffffff' }} placeholder="default" placeholderTextColor="#9aa0c0" />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={{ color: '#ffffff' }}>Smart Wake</Text>
+        <Switch value={smartWake} onValueChange={setSmartWake} />
+      </View>
+      <Text style={{ color: '#ffffff' }}>Wake Window Minutes</Text>
+      <TextInput
+        value={windowMinutes}
+        onChangeText={setWindowMinutes}
+        keyboardType="number-pad"
+        style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderColor: '#1a1f3a', color: '#ffffff' }}
+        placeholder="30"
+        placeholderTextColor="#9aa0c0"
+      />
       <Button title={id ? 'Save' : 'Add'} onPress={save} />
     </View>
   );
@@ -66,8 +85,8 @@ function WeekdayPicker({ value, onChange }: { value: RepeatDay[]; onChange: (v: 
       {days.map(({ d, label }) => {
         const selected = value.includes(d);
         return (
-          <Pressable key={d} onPress={() => onChange(selected ? value.filter(x => x !== d) : [...value, d])} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: selected ? '#4a90e2' : '#aaa', backgroundColor: selected ? '#eaf2ff' : 'transparent' }}>
-            <Text style={{ color: selected ? '#4a90e2' : '#333' }}>{label}</Text>
+          <Pressable key={d} onPress={() => onChange(selected ? value.filter(x => x !== d) : [...value, d])} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: selected ? '#4a90e2' : '#1a1f3a', backgroundColor: selected ? 'rgba(74,144,226,0.2)' : 'rgba(255,255,255,0.06)' }}>
+            <Text style={{ color: selected ? '#4a90e2' : '#ffffff' }}>{label}</Text>
           </Pressable>
         );
       })}
