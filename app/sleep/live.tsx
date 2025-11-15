@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View } from 'react-native';
+import { Button, Text, View, Switch } from 'react-native';
 import LiveHrChart from '../../components/LiveHrChart';
 import { useSession } from '../../context/SessionContext';
 import { startWakeMonitoring, stopWakeMonitoring, updateStageForAlarm } from '../../services/alarm';
 import { startHeartRateMock, stopHeartRateMock, subscribeHeartRate } from '../../services/heartRateMock';
+import { startClapHr, stopClapHr, subscribeClapHr } from '../../services/clapHr';
 import { startMotion, stopMotion, subscribeMotion } from '../../services/sensors';
 import { inferStage } from '../../services/staging';
 
@@ -17,12 +18,17 @@ export default function LiveSession() {
   const [hrSeries, setHrSeries] = useState<number[]>([]);
   const hrRef = useRef<number | undefined>(undefined);
   const motionRef = useRef<number | undefined>(undefined);
+  const [useClap, setUseClap] = useState<boolean>(true);
 
   useEffect(() => {
     if (!config) return;
-    startHeartRateMock();
+    if (useClap) {
+      startClapHr();
+    } else {
+      startHeartRateMock();
+    }
     startMotion();
-    const hrUnsub = subscribeHeartRate(sample => {
+    const hrUnsub = (useClap ? subscribeClapHr : subscribeHeartRate)((sample: any) => {
       hrRef.current = sample.hr;
       setHr(sample.hr);
       setHrSeries(prev => {
@@ -46,11 +52,11 @@ export default function LiveSession() {
     return () => {
       hrUnsub();
       motionUnsub();
-      stopHeartRateMock();
+      if (useClap) stopClapHr(); else stopHeartRateMock();
       stopMotion();
       stopWakeMonitoring();
     };
-  }, [config]);
+  }, [config, useClap]);
 
   function updateStage(hrVal?: number, motion?: number) {
     if (hrVal === undefined || motion === undefined) return;
@@ -67,6 +73,10 @@ export default function LiveSession() {
       <Text style={{ fontSize: 20, fontWeight: '600', color: '#ffffff' }}>Current Alarms</Text>
       <Text style={{ color: '#ffffff' }}>Target: {new Date(config.targetTime).toLocaleTimeString()} window {config.windowMinutes}m</Text>
       <Text style={{ color: '#ffffff' }}>Heart Rate: {hr ? hr.toFixed(0) : '—'} bpm</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: '#9aa0c0' }}>Clap mode</Text>
+        <Switch value={useClap} onValueChange={setUseClap} />
+      </View>
       <LiveHrChart data={hrSeries} />
       <Text style={{ color: '#ffffff' }}>Motion Magnitude: {motionMag ? motionMag.toFixed(2) : '—'}</Text>
       <Text style={{ color: '#ffffff' }}>Stage: {stage}</Text>
