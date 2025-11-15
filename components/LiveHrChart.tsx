@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { Line, Polyline, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 
 export default function LiveHrChart({
   data,
@@ -13,19 +13,20 @@ export default function LiveHrChart({
   height?: number;
   stroke?: string;
 }) {
-  const { points, min, max } = useMemo(() => {
+  const { points, min, max, coords } = useMemo(() => {
     const n = data.length;
     const safe = n > 0 ? data : [0];
     const min = Math.min(...safe);
     const max = Math.max(...safe);
     const range = Math.max(1, max - min);
     const pad = 8;
-    const pts = safe.map((v, i) => {
+    const coords = safe.map((v, i) => {
       const x = (i / Math.max(1, n - 1)) * (width - pad * 2) + pad;
       const y = height - (((v - min) / range) * (height - pad * 2) + pad);
-      return `${x},${y}`;
+      return { x, y };
     });
-    return { points: pts.join(' '), min, max };
+    const pts = coords.map(p => `${p.x},${p.y}`);
+    return { points: pts.join(' '), min, max, coords };
   }, [data, width, height]);
 
   return (
@@ -34,6 +35,13 @@ export default function LiveHrChart({
         {/* baseline grid */}
         <Line x1={0} y1={height-1} x2={width} y2={height-1} stroke="#2a2f4a" strokeWidth={1} />
         <Polyline points={points} fill="none" stroke={stroke} strokeWidth={2} />
+        {/* end-tip marker */}
+        {coords.length > 0 && (
+          <>
+            <Circle cx={coords[coords.length-1].x} cy={coords[coords.length-1].y} r={4.5} fill="#ffd166" />
+            <Circle cx={coords[coords.length-1].x} cy={coords[coords.length-1].y} r={6} stroke="#1a1f3a" strokeWidth={1} fill="none" />
+          </>
+        )}
         {/* min/max labels */}
         <SvgText x={4} y={12} fontSize={10} fill="#9aa0c0">max {Math.round(max)} bpm</SvgText>
         <SvgText x={4} y={height-2} fontSize={10} fill="#9aa0c0">min {Math.round(min)} bpm</SvgText>

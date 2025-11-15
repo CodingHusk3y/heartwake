@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Alert } from 'react-native';
 import { Alarm, RepeatDay, listAlarms, upsertAlarm } from './alarmsStore';
 
 export async function ensureNotificationPermission(): Promise<boolean> {
@@ -45,11 +46,11 @@ export async function cancelForAlarm(alarm: Alarm) {
   await Promise.all(alarm.notifIds.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})));
 }
 
-export async function scheduleForAlarm(alarm: Alarm): Promise<string[]> {
+export async function scheduleForAlarm(alarm: Alarm): Promise<{ ids: string[]; nextFireAt?: string }> {
   await ensureNotificationPermission();
   const { hour, minute } = parseHHMM(alarm.timeHHMM);
   const ids: string[] = [];
-  const content = { title: alarm.label || 'Alarm', body: alarm.timeHHMM, sound: true as any };
+  const deadlineContent = { title: alarm.label || 'Alarm', body: alarm.timeHHMM, sound: true as any, data: { alarmId: alarm.id, type: 'deadline' } } as Notifications.NotificationContentInput;
   const windowMins = Math.max(0, alarm.windowMinutes ?? 0);
   const addWindowStartReminder = async (trigger: Notifications.NotificationTriggerInput) => {
     if (!alarm.smartWake || windowMins <= 0) return;
@@ -62,7 +63,7 @@ export async function scheduleForAlarm(alarm: Alarm): Promise<string[]> {
   if (alarm.repeat && alarm.repeat.length > 0) {
     for (const d of alarm.repeat) {
       const id = await Notifications.scheduleNotificationAsync({
-        content,
+        content: deadlineContent,
         trigger: { hour, minute, weekday: weekdayFromRepeatDay(d), repeats: true },
       });
       ids.push(id);
@@ -73,7 +74,7 @@ export async function scheduleForAlarm(alarm: Alarm): Promise<string[]> {
           weekday = ((d + 6) % 7) as RepeatDay; // previous day
         }
         const winId = await Notifications.scheduleNotificationAsync({
-          content: { title: 'Smart wake window', body: 'Window started — keep app open for early wake', sound: false as any },
+          content: { title: 'Smart wake window', body: 'Window started — keep app open for early wake', sound: false as any, data: { alarmId: alarm.id, type: 'window-start' } },
           trigger: { hour: hh, minute: mm, weekday: weekdayFromRepeatDay(weekday), repeats: true },
         });
         ids.push(winId);
@@ -81,19 +82,29 @@ export async function scheduleForAlarm(alarm: Alarm): Promise<string[]> {
     }
   } else {
     const fireDate = nextOccurrence(alarm.timeHHMM);
-    const id = await Notifications.scheduleNotificationAsync({ content, trigger: fireDate });
+    const id = await Notifications.scheduleNotificationAsync({ content: deadlineContent, trigger: fireDate });
     ids.push(id);
     if (alarm.smartWake && windowMins > 0) {
       const win = new Date(fireDate);
       win.setMinutes(win.getMinutes() - windowMins);
-      const winId = await Notifications.scheduleNotificationAsync({
-        content: { title: 'Smart wake window', body: 'Window started — keep app open for early wake', sound: false as any },
-        trigger: win,
-      });
-      ids.push(winId);
+      const now = new Date();
+      if (win.getTime() <= now.getTime()) {
+        Alert.alert('Wake window too large', 'Wake window must fall within the remaining time until the alarm. Please reduce the window or set a later alarm.');
+      } else {
+        try {
+          const winId = await Notifications.scheduleNotificationAsync({
+            content: { title: 'Smart wake window', body: 'Window started — keep app open for early wake', sound: false as any, data: { alarmId: alarm.id, type: 'window-start' } },
+            trigger: win,
+          });
+          ids.push(winId);
+        } catch (e) {
+          Alert.alert('Could not schedule window', 'We could not schedule the smart wake window reminder. Adjust your wake window or try again.');
+        }
+      }
     }
+    return { ids, nextFireAt: fireDate.toISOString() };
   }
-  return ids;
+  return { ids };
 }
 
 export async function rescheduleAlarm(alarmId: string) {
@@ -105,6 +116,6 @@ export async function rescheduleAlarm(alarmId: string) {
     await upsertAlarm({ ...alarm, notifIds: [] });
     return;
   }
-  const ids = await scheduleForAlarm(alarm);
-  await upsertAlarm({ ...alarm, notifIds: ids });
+  const result = await scheduleForAlarm(alarm);
+  await upsertAlarm({ ...alarm, notifIds: result.ids, nextFireAt: result.nextFireAt });
 }

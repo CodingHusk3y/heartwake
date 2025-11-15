@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
@@ -14,8 +15,19 @@ export default function AlarmsScreen() {
 
   const load = useCallback(() => { listAlarms().then(setAlarms); }, []);
   useEffect(() => { load(); }, [load]);
-  useFocusEffect(React.useCallback(() => { load(); }, [load]));
+  useFocusEffect(React.useCallback(() => { cleanupExpiredOneTime().then(load); }, [load]));
   useEffect(() => { ensureNotificationPermission().then(() => {}); }, []);
+  useEffect(() => {
+    const sub1 = Notifications.addNotificationReceivedListener(n => {
+      const type = (n.request.content.data as any)?.type;
+      if (type === 'deadline') load();
+    });
+    const sub2 = Notifications.addNotificationResponseReceivedListener(r => {
+      const type = (r.notification.request.content.data as any)?.type;
+      if (type === 'deadline') load();
+    });
+    return () => { sub1.remove(); sub2.remove(); };
+  }, [load]);
 
   useEffect(() => {
     nav.setOptions({
@@ -112,6 +124,15 @@ function AlarmRow({ alarm, onChanged, onPress }: { alarm: Alarm; onChanged: () =
       </Pressable>
     </Swipeable>
   );
+}
+
+async function cleanupExpiredOneTime() {
+  const list = await listAlarms();
+  const now = Date.now();
+  const expired = list.filter(a => (!a.repeat || a.repeat.length === 0) && !!a.nextFireAt && new Date(a.nextFireAt).getTime() < now - 60 * 1000);
+  for (const a of expired) {
+    await deleteAlarm(a.id);
+  }
 }
 
 const styles = StyleSheet.create({

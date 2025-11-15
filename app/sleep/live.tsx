@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, Text, View } from 'react-native';
 import LiveHrChart from '../../components/LiveHrChart';
 import { useSession } from '../../context/SessionContext';
@@ -15,12 +15,15 @@ export default function LiveSession() {
   const [motionMag, setMotionMag] = useState<number | undefined>();
   const [stage, setStage] = useState<string>('unknown');
   const [hrSeries, setHrSeries] = useState<number[]>([]);
+  const hrRef = useRef<number | undefined>(undefined);
+  const motionRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (!config) return;
     startHeartRateMock();
     startMotion();
     const hrUnsub = subscribeHeartRate(sample => {
+      hrRef.current = sample.hr;
       setHr(sample.hr);
       setHrSeries(prev => {
         const next = [...prev, sample.hr];
@@ -28,11 +31,12 @@ export default function LiveSession() {
         if (next.length > 60) next.shift();
         return next;
       });
-      updateStage(sample.hr, motionMag);
+      updateStage(hrRef.current, motionRef.current);
     });
     const motionUnsub = subscribeMotion(mag => {
+      motionRef.current = mag;
       setMotionMag(mag);
-      updateStage(hr, mag);
+      updateStage(hrRef.current, motionRef.current);
     });
     startWakeMonitoring(config, (info) => {
       updateState({ earlyWakeTriggered: info.early, wakeTime: info.wakeTime, stage: info.stage });

@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Button, Text, View } from 'react-native';
+import { Button, Pressable, Text, View } from 'react-native';
 import { listSessions, rateSession, StoredSession } from '../../services/storage';
 
 export default function RateWake() {
@@ -21,23 +22,30 @@ export default function RateWake() {
       router.push('/');
     }
   }
+  function StarRow({ value, onSelect }: { value: number; onSelect: (v: number) => void }) {
+    return (
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {[1,2,3,4,5].map(v => (
+          <Pressable key={v} onPress={() => onSelect(v)}>
+            <Ionicons name={v <= value ? 'star' : 'star-outline'} size={32} color={v <= value ? '#ffd166' : '#9aa0c0'} />
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 16 }}>
-      <Text style={{ fontSize: 20, fontWeight: '600' }}>Wake Quality Rating</Text>
+    <View style={{ flex: 1, padding: 16, gap: 16, backgroundColor: 'transparent' }}>
+      <Text style={{ fontSize: 20, fontWeight: '600', color: '#ffffff' }}>Wake Quality Rating</Text>
       {session ? (
         <>
-          <Text>Wake Time: {session.wakeTime ? new Date(session.wakeTime).toLocaleTimeString() : '—'}</Text>
-          <Text>Early Wake: {session.early ? `Yes${typeof session.minutesEarly === 'number' ? ` · ${session.minutesEarly} min early` : ''}` : 'No'}</Text>
-          <Text>Select Rating (1=poor,5=great):</Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {[1,2,3,4,5].map(v => (
-              <Button key={v} title={String(v)} onPress={() => rate(v)} />
-            ))}
-          </View>
+          <Text style={{ color: '#ffffff' }}>Wake Time: {session.wakeTime ? new Date(session.wakeTime).toLocaleTimeString() : '—'}</Text>
+          <Text style={{ color: '#ffffff' }}>Early Wake: {session.early ? `Yes${typeof session.minutesEarly === 'number' ? ` · ${session.minutesEarly} min early` : ''}` : 'No'}</Text>
+          <Text style={{ color: '#9aa0c0' }}>Tap stars to rate:</Text>
+          <StarRow value={0} onSelect={(v) => rate(v)} />
         </>
       ) : (
-        <Text>No unrated session found.</Text>
+        <Text style={{ color: '#9aa0c0' }}>No unrated session found.</Text>
       )}
       <Button title="Skip" onPress={() => router.push('/')} />
     </View>

@@ -11,6 +11,7 @@ export type Alarm = {
   notifIds?: string[]; // scheduled notification IDs for cancelation
   smartWake?: boolean; // use smart wake window and staging
   windowMinutes?: number; // minutes before latest time
+  nextFireAt?: string; // ISO for one-time alarm next occurrence
 };
 
 const KEY = 'heartwake_alarms_v1';

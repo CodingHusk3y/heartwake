@@ -11,7 +11,7 @@ Notifications.setNotificationHandler({
 
 async function fireEarlyWake(stage: string) {
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'HeartWake', body: `Waking during light stage (${stage})`, sound: true },
+    content: { title: 'HeartWake', body: `Waking during light stage (${stage})`, sound: true, data: { type: 'early' } },
     trigger: null
   });
 }
@@ -36,7 +36,7 @@ export function startWakeMonitoring(cfg: SleepSessionConfig, onWake: (info: { st
       clearInterval(monitorTimer);
       monitorTimer = undefined;
       await Notifications.scheduleNotificationAsync({
-        content: { title: 'HeartWake', body: 'Wake deadline reached', sound: true },
+        content: { title: 'HeartWake', body: 'Wake deadline reached', sound: true, data: { type: 'deadline' } },
         trigger: null
       });
       const wakeTime = new Date().toISOString();

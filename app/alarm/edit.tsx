@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Button, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Button, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import NumberWheel from '../../components/NumberWheel';
 import TimeWheel from '../../components/TimeWheel';
 import { rescheduleAlarm } from '../../services/alarmScheduler';
@@ -43,6 +43,15 @@ export default function EditAlarm() {
 
   const save = async () => {
     const wm = Math.max(0, Math.min(180, Number.isFinite(windowMinutes) ? windowMinutes : 30));
+    // Validate wake window fits remaining time until next occurrence (for one-time or nearest repeat)
+    if (smartWake) {
+      const next = computeNextOccurrenceDate(time, repeat);
+      const minutesUntil = Math.ceil((next.getTime() - Date.now()) / 60000);
+      if (wm > minutesUntil) {
+        Alert.alert('Wake window too large', 'Wake window must fall within the remaining time until the alarm. Please reduce the window or set a later alarm.');
+        return;
+      }
+    }
     const alarm: Alarm = { id: id || newId(), timeHHMM: time, label, repeat, sound, enabled: true, smartWake, windowMinutes: wm };
     await upsertAlarm(alarm);
     await rescheduleAlarm(alarm.id);
@@ -74,6 +83,33 @@ export default function EditAlarm() {
       <View style={{ height: 8 }} />
     </ScrollView>
   );
+}
+
+function computeNextOccurrenceDate(timeHHMM: string, repeat?: RepeatDay[]) {
+  const [hh, mm] = timeHHMM.split(':').map(Number);
+  const now = new Date();
+  if (repeat && repeat.length > 0) {
+    const today = now.getDay(); // 0..6
+    for (let offset = 0; offset < 7; offset++) {
+      const day = (today + offset) % 7 as RepeatDay;
+      if (repeat.includes(day)) {
+        const d = new Date(now);
+        d.setDate(now.getDate() + offset);
+        d.setHours(hh, mm, 0, 0);
+        if (d.getTime() <= now.getTime()) continue;
+        return d;
+      }
+    }
+    const d = new Date(now);
+    d.setDate(now.getDate() + 7);
+    d.setHours(hh, mm, 0, 0);
+    return d;
+  } else {
+    const d = new Date();
+    d.setHours(hh, mm, 0, 0);
+    if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+    return d;
+  }
 }
 
 function WeekdayPicker({ value, onChange }: { value: RepeatDay[]; onChange: (v: RepeatDay[]) => void }) {

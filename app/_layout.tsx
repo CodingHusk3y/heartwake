@@ -1,10 +1,13 @@
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from "expo-router";
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import NightBackground from '../components/NightBackground';
 import { SessionProvider } from '../context/SessionContext';
+import { initializeNotifications } from '../services/notifications';
 
 export default function RootLayout() {
+  useEffect(() => { initializeNotifications(); }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SessionProvider>
