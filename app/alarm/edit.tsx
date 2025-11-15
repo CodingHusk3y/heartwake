@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { Button, Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Button, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import NumberWheel from '../../components/NumberWheel';
 import TimeWheel from '../../components/TimeWheel';
 import { rescheduleAlarm } from '../../services/alarmScheduler';
 import { Alarm, RepeatDay, listAlarms, upsertAlarm } from '../../services/alarmsStore';
@@ -17,7 +18,7 @@ export default function EditAlarm() {
   const [repeat, setRepeat] = useState<RepeatDay[]>([]);
   const [sound, setSound] = useState('default');
   const [smartWake, setSmartWake] = useState<boolean>(true);
-  const [windowMinutes, setWindowMinutes] = useState<string>('30');
+  const [windowMinutes, setWindowMinutes] = useState<number>(30);
 
   useEffect(() => {
     if (id) {
@@ -26,7 +27,7 @@ export default function EditAlarm() {
         if (a) {
           setTime(a.timeHHMM); setLabel(a.label || 'Alarm'); setRepeat(a.repeat || []); setSound(a.sound || 'default');
           setSmartWake(a.smartWake ?? true);
-          setWindowMinutes(String(a.windowMinutes ?? 30));
+          setWindowMinutes(a.windowMinutes ?? 30);
         }
       });
     }
@@ -41,7 +42,7 @@ export default function EditAlarm() {
   };
 
   const save = async () => {
-    const wm = Math.max(0, parseInt(windowMinutes || '0', 10) || 0);
+    const wm = Math.max(0, Math.min(180, Number.isFinite(windowMinutes) ? windowMinutes : 30));
     const alarm: Alarm = { id: id || newId(), timeHHMM: time, label, repeat, sound, enabled: true, smartWake, windowMinutes: wm };
     await upsertAlarm(alarm);
     await rescheduleAlarm(alarm.id);
@@ -49,7 +50,12 @@ export default function EditAlarm() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 16, backgroundColor: 'transparent' }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: 'transparent' }}
+      contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: 32 }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator
+    >
       <Text style={{ fontSize: 16, color: '#ffffff' }}>Time</Text>
       <TimeWheel value={time} onChange={setTime} />
       <Text style={{ color: '#ffffff' }}>Label</Text>
@@ -62,17 +68,11 @@ export default function EditAlarm() {
         <Text style={{ color: '#ffffff' }}>Smart Wake</Text>
         <Switch value={smartWake} onValueChange={setSmartWake} />
       </View>
-      <Text style={{ color: '#ffffff' }}>Wake Window Minutes</Text>
-      <TextInput
-        value={windowMinutes}
-        onChangeText={setWindowMinutes}
-        keyboardType="number-pad"
-        style={{ borderWidth: 1, padding: 10, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)', borderColor: '#1a1f3a', color: '#ffffff' }}
-        placeholder="30"
-        placeholderTextColor="#9aa0c0"
-      />
+      <Text style={{ color: '#ffffff' }}>Wake Window</Text>
+      <NumberWheel value={windowMinutes} onChange={setWindowMinutes} min={0} max={120} step={5} />
       <Button title={id ? 'Save' : 'Add'} onPress={save} />
-    </View>
+      <View style={{ height: 8 }} />
+    </ScrollView>
   );
 }
 

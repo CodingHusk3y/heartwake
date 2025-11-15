@@ -3,6 +3,7 @@ import { useFocusEffect, useNavigation, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useSession } from '../../context/SessionContext';
 import { ensureNotificationPermission, rescheduleAlarm } from '../../services/alarmScheduler';
 import { Alarm, deleteAlarm, listAlarms, summarizeRepeat, toggleAlarm } from '../../services/alarmsStore';
 
@@ -47,11 +48,56 @@ export default function AlarmsScreen() {
 
 function AlarmRow({ alarm, onChanged, onPress }: { alarm: Alarm; onChanged: () => void; onPress: () => void }) {
   const ref = useRef<Swipeable | null>(null);
+  const { setConfig, updateState } = useSession();
+  const router = useRouter();
+  function computeNextTargetISO(a: Alarm): string {
+    const [hh, mm] = a.timeHHMM.split(':').map(Number);
+    const now = new Date();
+    const base = new Date();
+    base.setSeconds(0,0);
+    if (a.repeat && a.repeat.length > 0) {
+      // find next repeated day >= today
+      const today = now.getDay(); // 0..6
+      for (let offset = 0; offset < 7; offset++) {
+        const day = (today + offset) % 7 as any;
+        if (a.repeat!.includes(day)) {
+          const d = new Date(now);
+          d.setDate(now.getDate() + offset);
+          d.setHours(hh, mm, 0, 0);
+          if (d.getTime() <= now.getTime()) continue; // skip past time today
+          return d.toISOString();
+        }
+      }
+      // fallback one week later same first repeat
+      const d = new Date(now);
+      d.setDate(now.getDate() + 7);
+      d.setHours(hh, mm, 0, 0);
+      return d.toISOString();
+    } else {
+      const d = new Date();
+      d.setHours(hh, mm, 0, 0);
+      if (d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+      return d.toISOString();
+    }
+  }
+  function startSleep() {
+    const targetTime = computeNextTargetISO(alarm);
+    const windowMinutes = alarm.windowMinutes ?? 30;
+    setConfig({ targetTime, windowMinutes });
+    updateState({ active: true, startedAt: new Date().toISOString() });
+    router.push('/sleep/live');
+  }
   const rightActions = () => (
-    <Pressable style={styles.delete} onPress={async () => { await deleteAlarm(alarm.id); await rescheduleAlarm(alarm.id); ref.current?.close(); onChanged(); }}>
-      <Ionicons name="trash" size={22} color="#fff" />
-      <Text style={{ color: '#fff', marginLeft: 6 }}>Delete</Text>
-    </Pressable>
+    <View style={{ flexDirection: 'row' }}>
+      <Pressable style={styles.start} onPress={() => { ref.current?.close(); startSleep(); }}>
+        <Ionicons name="moon" size={20} color="#fff" />
+        <Text style={{ color: '#fff', marginLeft: 6 }}>Start</Text>
+      </Pressable>
+      <Pressable style={styles.delete} onPress={async () => { await deleteAlarm(alarm.id); await rescheduleAlarm(alarm.id); ref.current?.close(); onChanged(); }}>
+        <Ionicons name="trash" size={22} color="#fff" />
+        <Text style={{ color: '#fff', marginLeft: 6 }}>Delete</Text>
+      </Pressable>
+    </View>
   );
   return (
     <Swipeable ref={ref} renderRightActions={rightActions} overshootRight={false}>
@@ -73,4 +119,5 @@ const styles = StyleSheet.create({
   time: { fontSize: 28, fontWeight: '600', color: '#ffffff' },
   meta: { color: '#9aa0c0', marginTop: 2 },
   delete: { backgroundColor: '#e24a4a', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, flexDirection: 'row' },
+  start: { backgroundColor: '#4a90e2', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, flexDirection: 'row' },
 });

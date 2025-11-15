@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Button, Text, View } from 'react-native';
+import LiveHrChart from '../../components/LiveHrChart';
 import { useSession } from '../../context/SessionContext';
 import { startWakeMonitoring, stopWakeMonitoring, updateStageForAlarm } from '../../services/alarm';
 import { startHeartRateMock, stopHeartRateMock, subscribeHeartRate } from '../../services/heartRateMock';
@@ -13,6 +14,7 @@ export default function LiveSession() {
   const [hr, setHr] = useState<number | undefined>();
   const [motionMag, setMotionMag] = useState<number | undefined>();
   const [stage, setStage] = useState<string>('unknown');
+  const [hrSeries, setHrSeries] = useState<number[]>([]);
 
   useEffect(() => {
     if (!config) return;
@@ -20,6 +22,12 @@ export default function LiveSession() {
     startMotion();
     const hrUnsub = subscribeHeartRate(sample => {
       setHr(sample.hr);
+      setHrSeries(prev => {
+        const next = [...prev, sample.hr];
+        // keep last 60 points
+        if (next.length > 60) next.shift();
+        return next;
+      });
       updateStage(sample.hr, motionMag);
     });
     const motionUnsub = subscribeMotion(mag => {
@@ -48,16 +56,17 @@ export default function LiveSession() {
     updateStageForAlarm(s);
   }
 
-  if (!config) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>No config.</Text></View>;
+  if (!config) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'transparent' }}><Text style={{ color: '#ffffff' }}>No config.</Text></View>;
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Text style={{ fontSize: 20, fontWeight: '600' }}>Current Alarms</Text>
-      <Text>Target: {new Date(config.targetTime).toLocaleTimeString()} window {config.windowMinutes}m</Text>
-      <Text>Heart Rate: {hr ? hr.toFixed(0) : '—'} bpm</Text>
-      <Text>Motion Magnitude: {motionMag ? motionMag.toFixed(2) : '—'}</Text>
-      <Text>Stage: {stage}</Text>
-      {state.earlyWakeTriggered && <Text>Early wake alarm fired.</Text>}
+    <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: 'transparent' }}>
+      <Text style={{ fontSize: 20, fontWeight: '600', color: '#ffffff' }}>Current Alarms</Text>
+      <Text style={{ color: '#ffffff' }}>Target: {new Date(config.targetTime).toLocaleTimeString()} window {config.windowMinutes}m</Text>
+      <Text style={{ color: '#ffffff' }}>Heart Rate: {hr ? hr.toFixed(0) : '—'} bpm</Text>
+      <LiveHrChart data={hrSeries} />
+      <Text style={{ color: '#ffffff' }}>Motion Magnitude: {motionMag ? motionMag.toFixed(2) : '—'}</Text>
+      <Text style={{ color: '#ffffff' }}>Stage: {stage}</Text>
+      {state.earlyWakeTriggered && <Text style={{ color: '#4a90e2' }}>Early wake alarm fired.</Text>}
       <Button title="Stop Session" onPress={() => { reset(); router.push('/'); }} />
     </View>
   );
