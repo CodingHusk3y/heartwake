@@ -1,5 +1,7 @@
 # Heartwake
 
+<img width="1024" height="1024" alt="ChatGPT Image Nov 16, 2025, 03_14_02 AM" src="https://github.com/user-attachments/assets/6271f182-416b-416f-abc9-79dc73ca70bb" />
+
 A dark, sleep‑friendly smart alarm that aims to wake you during lighter sleep—trading a few minutes of time for less grogginess.
 
 ## Inspiration
